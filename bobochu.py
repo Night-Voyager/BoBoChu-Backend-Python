@@ -7,8 +7,15 @@ class Room:
     def number_of_players(self):
         return len(self.players)
 
+    @property
+    def websockets_of_all_players(self):
+        websockets = []
+        for player in self.players:
+            websockets.append(player.websocket)
+        return websockets
+
 
 class Player:
-    def __init__(self):
-        self.websocket = None
+    def __init__(self, websocket=None):
+        self.websocket = websocket
         self.state = None

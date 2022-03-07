@@ -4,7 +4,7 @@ import random
 
 import websockets
 
-from bobochu import Room
+from bobochu import Room, Player
 
 ROOMS = {}
 
@@ -20,14 +20,14 @@ async def error(websocket, message):
     await websocket.send(json.dumps(error_message))
 
 
-async def wait_for_game_start(websocket, room):
+async def wait_for_game_start(player, room):
     """
     Wait for the room creator to start the game
     """
-    if websocket == room.players[0]:
-        async for message in websocket:
+    if player == room.players[0]:
+        async for message in player.websocket:
             if "start" in json.loads(message):
-                websockets.broadcast(room.players, json.dumps({"start": None}))
+                websockets.broadcast(room.websockets_of_all_players, json.dumps({"start": None}))
     else:
         while True:
             pass
@@ -45,7 +45,8 @@ async def create_room(websocket):
 
     # Instantiate a room and register the player to the room
     room = Room(room_number)
-    room.players.append(websocket)
+    player = Player(websocket)
+    room.players.append(player)
     ROOMS[room_number] = room
 
     # Send the number of created room to the player
@@ -53,9 +54,9 @@ async def create_room(websocket):
         message = {
             "roomNumber": room_number
         }
-        await websocket.send(json.dumps(message))
+        await player.websocket.send(json.dumps(message))
         print("New room created with number %d, currently %d room(s) exist(s)" % (room_number, len(ROOMS)))
-        await wait_for_game_start(websocket, room)
+        await wait_for_game_start(player, room)
     finally:
         del ROOMS[room_number]
 
@@ -73,10 +74,11 @@ async def join_room(websocket, room_number):
         return
 
     # Register the player to the room
-    room.players.append(websocket)
+    player = Player(websocket)
+    room.players.append(player)
     print("New player joins room %d, currently %d player(s) joined" % (room_number, len(room.players)))
-    websockets.broadcast(room.players, json.dumps({"newJoin": None}))
-    await wait_for_game_start(websocket, room)
+    websockets.broadcast(room.websockets_of_all_players, json.dumps({"newJoin": None}))
+    await wait_for_game_start(player, room)
 
 
 async def handler(websocket):
